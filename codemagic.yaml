@@ -7,15 +7,19 @@ workflows:
       node: 18
 
     scripts:
-      - name: Go to project root
-        script: cd $CM_BUILD_DIR
+      # انتقل إلى مجلد المشروع الصحيح
+      - name: Go to project directory
+        script: cd $CM_BUILD_DIR/NotesVoice
 
+      # تثبيت Expo CLI
       - name: Install Expo CLI
         script: npm install -g expo-cli
 
+      # تثبيت dependencies
       - name: Install dependencies
         script: yarn install
 
+      # بناء APK
       - name: Build APK
         script: npx expo build:android -t apk --no-wait
 
