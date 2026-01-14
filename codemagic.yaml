@@ -13,8 +13,8 @@ workflows:
       - name: Install Expo CLI
         script: npm install -g expo-cli
 
-      - name: Install dependencies
-        script: npm install
+      - name: Install dependencies (ignore peer deps)
+        script: npm install --legacy-peer-deps
 
       - name: Build APK
         script: npx expo build:android -t apk --no-wait
