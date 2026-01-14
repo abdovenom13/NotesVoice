@@ -7,6 +7,9 @@ workflows:
       node: 18
 
     scripts:
+      - name: Go to project root
+        script: cd $CM_BUILD_DIR
+
       - name: Install Expo CLI
         script: npm install -g expo-cli
 
