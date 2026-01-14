@@ -4,9 +4,10 @@ const ONSPACE_AI_BASE_URL = Deno.env.get('ONSPACE_AI_BASE_URL');
 const ONSPACE_AI_API_KEY = Deno.env.get('ONSPACE_AI_API_KEY');
 
 interface AIRequest {
-  action: 'improve' | 'summarize' | 'generateTitle' | 'extractPoints' | 'toList' | 'translate';
+  action: 'improve' | 'summarize' | 'generateTitle' | 'extractPoints' | 'toList' | 'translate' | 'chat';
   text: string;
   targetLanguage?: string;
+  chatHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
 Deno.serve(async (req) => {
@@ -16,7 +17,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, text, targetLanguage }: AIRequest = await req.json();
+    const { action, text, targetLanguage, chatHistory }: AIRequest = await req.json();
 
     if (!text || !action) {
       return new Response(
@@ -25,6 +26,57 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Handle chat mode with history
+    if (action === 'chat') {
+      const messages = [
+        {
+          role: 'system',
+          content: 'أنت مساعد ذكي ومفيد. أجب على الأسئلة بطريقة واضحة ومفيدة. استخدم العربية عندما يسأل المستخدم بالعربية والإنجليزية عندما يسأل بالإنجليزية.',
+        },
+        ...(chatHistory || []),
+        {
+          role: 'user',
+          content: text,
+        },
+      ];
+
+      console.log('Chat Request:', { messageCount: messages.length });
+
+      const response = await fetch(`${ONSPACE_AI_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${ONSPACE_AI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages,
+          temperature: 0.8,
+          max_tokens: 2000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI API Error:', errorText);
+        return new Response(
+          JSON.stringify({ error: `AI API Error: ${errorText}` }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const data = await response.json();
+      const result = data.choices?.[0]?.message?.content || '';
+
+      console.log('Chat Response success:', { resultLength: result.length });
+
+      return new Response(
+        JSON.stringify({ result }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Handle other actions with single prompt
     let prompt = '';
     
     switch (action) {
