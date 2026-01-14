@@ -19,6 +19,11 @@ workflows:
       - name: Install dependencies
         script: npm install --legacy-peer-deps
 
+      - name: Login to Expo using token
+        script: |
+          export EXPO_TOKEN=OgxnL3tG5oewDeI2fUbMJAvY4o4L8aNmHDZOMU5-
+          eas whoami
+
       - name: Build APK with EAS
         script: eas build -p android --non-interactive
 
