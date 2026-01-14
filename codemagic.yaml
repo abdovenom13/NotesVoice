@@ -7,19 +7,15 @@ workflows:
       node: 18
 
     scripts:
-      # انتقل إلى مجلد المشروع الصحيح (Root)
       - name: Go to project root
         script: cd $CM_BUILD_DIR
 
-      # تثبيت Expo CLI
       - name: Install Expo CLI
         script: npm install -g expo-cli
 
-      # تثبيت dependencies
       - name: Install dependencies
-        script: yarn install
+        script: npm install
 
-      # بناء APK
       - name: Build APK
         script: npx expo build:android -t apk --no-wait
 
