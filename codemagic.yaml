@@ -7,9 +7,6 @@ workflows:
       node: 18
 
     scripts:
-      - name: Install Yarn
-        script: npm install -g yarn
-
       - name: Install Expo CLI
         script: npm install -g expo-cli
 
