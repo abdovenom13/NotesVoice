@@ -19,9 +19,11 @@ import { commonStyles } from '@/constants/styles';
 import { useNotes } from '@/hooks/useNotes';
 import { useSpeech } from '@/hooks/useSpeech';
 import { useTextFormat } from '@/hooks/useTextFormat';
+import { useAI } from '@/hooks/useAI';
 import { Note } from '@/services/noteService';
 import { FormatToolbar } from '@/components/feature/FormatToolbar';
 import { RichTextPreview } from '@/components/feature/RichTextPreview';
+import { AIMenu } from '@/components/feature/AIMenu';
 import { useAlert } from '@/template';
 
 export default function NoteDetailScreen() {
@@ -30,6 +32,7 @@ export default function NoteDetailScreen() {
   const { id } = useLocalSearchParams();
   const { notes, saveNote, deleteNote } = useNotes();
   const { isListening, isAvailable, startListening } = useSpeech();
+  const { loading: aiLoading, error: aiError, improveText, summarize, generateTitle, extractPoints, toList, translate } = useAI();
   const { showAlert } = useAlert();
   
   const [note, setNote] = useState<Note | null>(null);
@@ -37,6 +40,7 @@ export default function NoteDetailScreen() {
   const [content, setContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  const [showAIMenu, setShowAIMenu] = useState(false);
   
   const contentInputRef = useRef<TextInput>(null);
   const pulseAnim = useSharedValue(1);
@@ -146,6 +150,60 @@ export default function NoteDetailScreen() {
     updateSelection(start, end, content);
   };
 
+  const handleAIAction = async (actionId: string) => {
+    if (!content.trim()) {
+      showAlert('تنبيه', 'الرجاء كتابة نص أولاً');
+      setShowAIMenu(false);
+      return;
+    }
+
+    let result: string | null = null;
+
+    try {
+      switch (actionId) {
+        case 'improve':
+          result = await improveText(content);
+          break;
+        case 'summarize':
+          result = await summarize(content);
+          break;
+        case 'generateTitle':
+          result = await generateTitle(content);
+          if (result) {
+            setTitle(result);
+            setHasChanges(true);
+            showAlert('تم', 'تم توليد العنوان بنجاح');
+          }
+          setShowAIMenu(false);
+          return;
+        case 'extractPoints':
+          result = await extractPoints(content);
+          break;
+        case 'toList':
+          result = await toList(content);
+          break;
+        case 'translateAr':
+          result = await translate(content, 'ar');
+          break;
+        case 'translateEn':
+          result = await translate(content, 'en');
+          break;
+      }
+
+      if (result) {
+        setContent(result);
+        setHasChanges(true);
+        showAlert('تم', 'تمت المعالجة بنجاح');
+      } else if (aiError) {
+        showAlert('خطأ', aiError);
+      }
+    } catch (error) {
+      showAlert('خطأ', 'حدث خطأ أثناء معالجة النص');
+    } finally {
+      setShowAIMenu(false);
+    }
+  };
+
   if (!note) {
     return (
       <SafeAreaView style={commonStyles.container}>
@@ -173,6 +231,13 @@ export default function NoteDetailScreen() {
                 <Text style={styles.unsavedText}>غير محفوظ</Text>
               </View>
             )}
+            <Pressable 
+              onPress={() => setShowAIMenu(true)} 
+              hitSlop={12} 
+              style={styles.iconButton}
+            >
+              <MaterialIcons name="auto-awesome" size={24} color={theme.colors.primary} />
+            </Pressable>
             <Pressable 
               onPress={() => setPreviewMode(!previewMode)} 
               hitSlop={12} 
@@ -258,6 +323,13 @@ export default function NoteDetailScreen() {
             activeFormats={activeFormats}
           />
         )}
+
+        <AIMenu
+          visible={showAIMenu}
+          loading={aiLoading}
+          onSelect={handleAIAction}
+          onClose={() => setShowAIMenu(false)}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
