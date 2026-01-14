@@ -7,9 +7,9 @@ workflows:
       node: 18
 
     scripts:
-      # انتقل إلى مجلد المشروع الصحيح
-      - name: Go to project directory
-        script: cd $CM_BUILD_DIR/NotesVoice
+      # انتقل إلى مجلد المشروع الصحيح (Root)
+      - name: Go to project root
+        script: cd $CM_BUILD_DIR
 
       # تثبيت Expo CLI
       - name: Install Expo CLI
