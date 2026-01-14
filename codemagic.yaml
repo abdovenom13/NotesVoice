@@ -14,7 +14,7 @@ workflows:
         script: npm install -g expo-cli
 
       - name: Install dependencies
-        script: yarn install
+        script: yarn install --ignore-engines
 
       - name: Build APK
         script: npx expo build:android -t apk --no-wait
