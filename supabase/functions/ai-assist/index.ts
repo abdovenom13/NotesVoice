@@ -8,6 +8,7 @@ interface AIRequest {
   text: string;
   targetLanguage?: string;
   chatHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  model?: string;
 }
 
 Deno.serve(async (req) => {
@@ -17,7 +18,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, text, targetLanguage, chatHistory }: AIRequest = await req.json();
+    const { action, text, targetLanguage, chatHistory, model = 'google/gemini-3-flash-preview' }: AIRequest = await req.json();
 
     if (!text || !action) {
       return new Response(
@@ -49,7 +50,7 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model,
           messages,
           temperature: 0.8,
           max_tokens: 2000,
@@ -115,7 +116,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model,
         messages: [
           {
             role: 'user',

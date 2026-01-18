@@ -1,9 +1,19 @@
 import { useState } from 'react';
 import { aiService, AIAction } from '@/services/aiService';
+import { useSettings } from './useSettings';
+import type { AIModel } from '@/contexts/SettingsContext';
+
+const MODEL_MAP: Record<AIModel, string> = {
+  'gemini-flash': 'google/gemini-3-flash-preview',
+  'gemini-pro': 'google/gemini-3-pro-preview',
+  'gpt-5-mini': 'openai/gpt-5-mini',
+  'gpt-5': 'openai/gpt-5',
+};
 
 export function useAI() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { settings } = useSettings();
 
   const processText = async (
     action: AIAction,
@@ -19,11 +29,12 @@ export function useAI() {
     setError(null);
 
     try {
+      const model = MODEL_MAP[settings.aiModel] || 'google/gemini-3-flash-preview';
       const { data, error: aiError } = await aiService.processText({
         action,
         text,
         targetLanguage,
-      });
+      }, model);
 
       if (aiError) {
         setError(aiError);

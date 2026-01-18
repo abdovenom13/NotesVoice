@@ -16,7 +16,8 @@ export interface ChatRequest {
 export const chatService = {
   async sendMessage(
     message: string,
-    history: ChatMessage[]
+    history: ChatMessage[],
+    model?: string
   ): Promise<{ data: string | null; error: string | null }> {
     try {
       const supabase = getSupabaseClient();
@@ -31,6 +32,7 @@ export const chatService = {
           action: 'chat',
           text: message,
           chatHistory,
+          model,
         },
       });
 

@@ -1,3 +1,12 @@
+export interface MediaAttachment {
+  id: string;
+  uri: string;
+  type: 'image' | 'video';
+  name: string;
+  size: number;
+  createdAt: number;
+}
+
 export interface Note {
   id: string;
   title: string;
@@ -6,6 +15,7 @@ export interface Note {
   createdAt: number;
   updatedAt: number;
   formatting?: TextFormatting[];
+  attachments?: MediaAttachment[];
 }
 
 export interface TextFormatting {

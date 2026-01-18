@@ -2,12 +2,14 @@ import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AlertProvider } from '@/template';
 import { StatusBar } from 'expo-status-bar';
+import { SettingsProvider } from '@/contexts/SettingsContext';
 
 export default function RootLayout() {
   return (
     <AlertProvider>
-      <SafeAreaProvider>
-        <StatusBar style="light" />
+      <SettingsProvider>
+        <SafeAreaProvider>
+          <StatusBar style="light" />
         <Stack
           screenOptions={{
             headerShown: false,
@@ -23,7 +25,8 @@ export default function RootLayout() {
             }}
           />
         </Stack>
-      </SafeAreaProvider>
+        </SafeAreaProvider>
+      </SettingsProvider>
     </AlertProvider>
   );
 }

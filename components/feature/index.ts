@@ -5,3 +5,5 @@ export { RichTextPreview } from './RichTextPreview';
 export { AIMenu } from './AIMenu';
 export { ChatBubble } from './ChatBubble';
 export { ChatInput } from './ChatInput';
+export { MediaAttachments } from './MediaAttachments';
+export { MediaPickerMenu } from './MediaPickerMenu';

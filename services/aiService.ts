@@ -7,6 +7,7 @@ export interface AIRequest {
   action: AIAction;
   text: string;
   targetLanguage?: 'ar' | 'en';
+  model?: string;
 }
 
 export interface AIResponse {
@@ -15,12 +16,13 @@ export interface AIResponse {
 }
 
 export const aiService = {
-  async processText(request: AIRequest): Promise<{ data: string | null; error: string | null }> {
+  async processText(request: AIRequest, model?: string): Promise<{ data: string | null; error: string | null }> {
+    const requestWithModel = { ...request, model };
     try {
       const supabase = getSupabaseClient();
       
       const { data, error } = await supabase.functions.invoke('ai-assist', {
-        body: request,
+        body: requestWithModel,
       });
 
       if (error) {

@@ -8,9 +8,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, withRepeat, withTiming, useSharedValue } from 'react-native-reanimated';
@@ -20,19 +19,23 @@ import { useNotes } from '@/hooks/useNotes';
 import { useSpeech } from '@/hooks/useSpeech';
 import { useTextFormat } from '@/hooks/useTextFormat';
 import { useAI } from '@/hooks/useAI';
-import { Note } from '@/services/noteService';
+import { useSettings } from '@/hooks/useSettings';
+import { Note, MediaAttachment } from '@/services/noteService';
+import { mediaService } from '@/services/mediaService';
 import { FormatToolbar } from '@/components/feature/FormatToolbar';
 import { RichTextPreview } from '@/components/feature/RichTextPreview';
 import { AIMenu } from '@/components/feature/AIMenu';
+import { MediaAttachments } from '@/components/feature/MediaAttachments';
+import { MediaPickerMenu } from '@/components/feature/MediaPickerMenu';
 import { useAlert } from '@/template';
 
 export default function NoteDetailScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams();
   const { notes, saveNote, deleteNote } = useNotes();
   const { isListening, isAvailable, startListening } = useSpeech();
   const { loading: aiLoading, error: aiError, improveText, summarize, generateTitle, extractPoints, toList, translate } = useAI();
+  const { settings } = useSettings();
   const { showAlert } = useAlert();
   
   const [note, setNote] = useState<Note | null>(null);
@@ -41,6 +44,7 @@ export default function NoteDetailScreen() {
   const [hasChanges, setHasChanges] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [showAIMenu, setShowAIMenu] = useState(false);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
   
   const contentInputRef = useRef<TextInput>(null);
   const pulseAnim = useSharedValue(1);
@@ -73,7 +77,10 @@ export default function NoteDetailScreen() {
 
   useEffect(() => {
     if (note) {
-      setHasChanges(title !== note.title || content !== note.content);
+      setHasChanges(
+        title !== note.title || 
+        content !== note.content
+      );
     }
   }, [title, content, note]);
 
@@ -85,6 +92,7 @@ export default function NoteDetailScreen() {
       title: title.trim() || 'ملاحظة بدون عنوان',
       content,
       updatedAt: Date.now(),
+      attachments: note.attachments || [],
     };
     
     await saveNote(updatedNote);
@@ -106,6 +114,50 @@ export default function NoteDetailScreen() {
         },
       },
     ]);
+  };
+
+  const handleAddMedia = async (type: 'pick' | 'capture') => {
+    try {
+      let media: MediaAttachment | null = null;
+
+      if (type === 'pick') {
+        media = await mediaService.pickImage(settings.maxImageSize);
+      } else {
+        media = await mediaService.captureImage(settings.maxImageSize);
+      }
+
+      if (media && note) {
+        const updatedNote = {
+          ...note,
+          attachments: [...(note.attachments || []), media],
+          updatedAt: Date.now(),
+        };
+        await saveNote(updatedNote);
+        setNote(updatedNote);
+        showAlert('تم', 'تم إضافة الصورة بنجاح');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'فشل إضافة الصورة';
+      showAlert('خطأ', message);
+    }
+  };
+
+  const handleRemoveMedia = async (id: string) => {
+    if (!note) return;
+
+    const attachment = note.attachments?.find(a => a.id === id);
+    if (attachment) {
+      await mediaService.deleteMedia(attachment);
+    }
+
+    const updatedNote = {
+      ...note,
+      attachments: note.attachments?.filter(a => a.id !== id) || [],
+      updatedAt: Date.now(),
+    };
+    await saveNote(updatedNote);
+    setNote(updatedNote);
+    showAlert('تم', 'تم حذف الصورة بنجاح');
   };
 
   const handleVoiceInput = () => {
@@ -232,6 +284,13 @@ export default function NoteDetailScreen() {
               </View>
             )}
             <Pressable 
+              onPress={() => setShowMediaPicker(true)} 
+              hitSlop={12} 
+              style={styles.iconButton}
+            >
+              <MaterialIcons name="attach-file" size={24} color={theme.colors.textSecondary} />
+            </Pressable>
+            <Pressable 
               onPress={() => setShowAIMenu(true)} 
               hitSlop={12} 
               style={styles.iconButton}
@@ -265,6 +324,12 @@ export default function NoteDetailScreen() {
             placeholder="عنوان الملاحظة..."
             placeholderTextColor={theme.colors.textTertiary}
             style={styles.titleInput}
+          />
+          
+          <MediaAttachments
+            attachments={note.attachments || []}
+            onRemove={handleRemoveMedia}
+            editable={!previewMode}
           />
           
           {previewMode ? (
@@ -329,6 +394,13 @@ export default function NoteDetailScreen() {
           loading={aiLoading}
           onSelect={handleAIAction}
           onClose={() => setShowAIMenu(false)}
+        />
+
+        <MediaPickerMenu
+          visible={showMediaPicker}
+          onClose={() => setShowMediaPicker(false)}
+          onPickImage={() => handleAddMedia('pick')}
+          onCaptureImage={() => handleAddMedia('capture')}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
