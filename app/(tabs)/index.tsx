@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { theme } from '@/constants/theme';
 import { commonStyles } from '@/constants/styles';
 import { useNotes } from '@/hooks/useNotes';
+import { useFolders } from '@/hooks/useFolders';
 import { NoteCard } from '@/components/feature/NoteCard';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { FilterBar } from '@/components/feature/FilterBar';
@@ -16,17 +17,26 @@ export default function NotesScreen() {
   const insets = useSafeAreaInsets();
   const {
     notes,
+    allNotes,
     loading,
     searchQuery,
     setSearchQuery,
     filterMode,
     setFilterMode,
+    selectedFolderId,
+    setSelectedFolderId,
     toggleFavorite,
     createNote,
   } = useNotes();
+  const { folders } = useFolders();
 
-  const allNotes = notes.length;
-  const favoriteNotes = notes.filter(n => n.isFavorite).length;
+  const allCount = allNotes.length;
+  const favoriteNotes = allNotes.filter(n => n.isFavorite).length;
+  
+  const folderCounts = folders.reduce((acc, folder) => {
+    acc[folder.id] = allNotes.filter(n => n.folderId === folder.id).length;
+    return acc;
+  }, {} as Record<string, number>);
 
   const handleCreateNote = () => {
     const newNote = createNote();
@@ -56,8 +66,11 @@ export default function NotesScreen() {
       <FilterBar
         activeFilter={filterMode}
         onFilterChange={setFilterMode}
-        allCount={allNotes}
+        allCount={allCount}
         favoritesCount={favoriteNotes}
+        selectedFolderId={selectedFolderId}
+        onFolderChange={setSelectedFolderId}
+        folderCounts={folderCounts}
       />
 
       <FlatList

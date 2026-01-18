@@ -20,6 +20,7 @@ import { useSpeech } from '@/hooks/useSpeech';
 import { useTextFormat } from '@/hooks/useTextFormat';
 import { useAI } from '@/hooks/useAI';
 import { useSettings } from '@/hooks/useSettings';
+import { useFolders } from '@/hooks/useFolders';
 import { Note, MediaAttachment } from '@/services/noteService';
 import { mediaService } from '@/services/mediaService';
 import { FormatToolbar } from '@/components/feature/FormatToolbar';
@@ -27,6 +28,7 @@ import { RichTextPreview } from '@/components/feature/RichTextPreview';
 import { AIMenu } from '@/components/feature/AIMenu';
 import { MediaAttachments } from '@/components/feature/MediaAttachments';
 import { MediaPickerMenu } from '@/components/feature/MediaPickerMenu';
+import { FolderPicker } from '@/components/feature/FolderPicker';
 import { useAlert } from '@/template';
 
 export default function NoteDetailScreen() {
@@ -36,6 +38,7 @@ export default function NoteDetailScreen() {
   const { isListening, isAvailable, startListening } = useSpeech();
   const { loading: aiLoading, error: aiError, improveText, summarize, generateTitle, extractPoints, toList, translate } = useAI();
   const { settings } = useSettings();
+  const { folders } = useFolders();
   const { showAlert } = useAlert();
   
   const [note, setNote] = useState<Note | null>(null);
@@ -45,6 +48,7 @@ export default function NoteDetailScreen() {
   const [previewMode, setPreviewMode] = useState(false);
   const [showAIMenu, setShowAIMenu] = useState(false);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
   
   const contentInputRef = useRef<TextInput>(null);
   const pulseAnim = useSharedValue(1);
@@ -65,6 +69,9 @@ export default function NoteDetailScreen() {
   const animatedMicStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseAnim.value }],
   }));
+
+  const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+  const currentFolder = folders.find(f => f.id === note?.folderId);
 
   useEffect(() => {
     const foundNote = notes.find(n => n.id === id);
@@ -278,6 +285,23 @@ export default function NoteDetailScreen() {
           </Pressable>
           
           <View style={styles.headerActions}>
+            {currentFolder && (
+              <Pressable
+                style={styles.folderBadge}
+                onPress={() => setShowFolderPicker(true)}
+              >
+                <MaterialIcons name={currentFolder.icon as any} size={16} color={currentFolder.color} />
+                <Text style={styles.folderText}>{currentFolder.name}</Text>
+              </Pressable>
+            )}
+            {!currentFolder && (
+              <Pressable
+                style={styles.addFolderButton}
+                onPress={() => setShowFolderPicker(true)}
+              >
+                <MaterialIcons name="create-new-folder" size={20} color={theme.colors.textSecondary} />
+              </Pressable>
+            )}
             {hasChanges && (
               <View style={styles.unsavedIndicator}>
                 <Text style={styles.unsavedText}>غير محفوظ</Text>
@@ -378,7 +402,11 @@ export default function NoteDetailScreen() {
             </Text>
           </Pressable>
           
-          <Text style={styles.charCount}>{content.length} حرف</Text>
+          <View style={styles.stats}>
+            <Text style={styles.statText}>{wordCount} كلمة</Text>
+            <Text style={styles.statSeparator}>•</Text>
+            <Text style={styles.statText}>{content.length} حرف</Text>
+          </View>
         </View>
 
         {!previewMode && (
@@ -401,6 +429,19 @@ export default function NoteDetailScreen() {
           onClose={() => setShowMediaPicker(false)}
           onPickImage={() => handleAddMedia('pick')}
           onCaptureImage={() => handleAddMedia('capture')}
+        />
+
+        <FolderPicker
+          visible={showFolderPicker}
+          selectedFolderId={note?.folderId}
+          onSelect={(folderId) => {
+            if (note) {
+              const updatedNote = { ...note, folderId, updatedAt: Date.now() };
+              saveNote(updatedNote);
+              setNote(updatedNote);
+            }
+          }}
+          onClose={() => setShowFolderPicker(false)}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -439,6 +480,28 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xs,
     color: theme.colors.primary,
     fontWeight: theme.fontWeight.medium,
+  },
+  
+  folderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  
+  folderText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.text,
+    fontWeight: theme.fontWeight.medium,
+  },
+  
+  addFolderButton: {
+    padding: theme.spacing.xs,
   },
   
   content: {
@@ -508,7 +571,19 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
   },
   
-  charCount: {
+  stats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  
+  statText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textTertiary,
+    fontWeight: theme.fontWeight.medium,
+  },
+  
+  statSeparator: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textTertiary,
   },

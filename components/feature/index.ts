@@ -7,3 +7,4 @@ export { ChatBubble } from './ChatBubble';
 export { ChatInput } from './ChatInput';
 export { MediaAttachments } from './MediaAttachments';
 export { MediaPickerMenu } from './MediaPickerMenu';
+export { FolderPicker } from './FolderPicker';

@@ -6,6 +6,7 @@ export function useNotes() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'favorites'>('all');
+  const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
 
   useEffect(() => {
     loadNotes();
@@ -40,6 +41,7 @@ export function useNotes() {
   const filteredNotes = notes
     .filter(note => {
       if (filterMode === 'favorites' && !note.isFavorite) return false;
+      if (selectedFolderId && note.folderId !== selectedFolderId) return false;
       if (!searchQuery) return true;
       
       const query = searchQuery.toLowerCase();
@@ -57,11 +59,14 @@ export function useNotes() {
 
   return {
     notes: filteredNotes,
+    allNotes: notes,
     loading,
     searchQuery,
     setSearchQuery,
     filterMode,
     setFilterMode,
+    selectedFolderId,
+    setSelectedFolderId,
     saveNote,
     deleteNote,
     toggleFavorite,
