@@ -14,6 +14,9 @@ export interface Note {
   content: string;
   isFavorite: boolean;
   folderId?: string;
+  tagIds?: string[];
+  timeSpent?: number; // seconds spent on note
+  lastOpenedAt?: number;
   createdAt: number;
   updatedAt: number;
   formatting?: TextFormatting[];

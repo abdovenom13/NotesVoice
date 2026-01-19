@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,8 @@ import { MediaPickerMenu } from '@/components/feature/MediaPickerMenu';
 import { FolderPicker } from '@/components/feature/FolderPicker';
 import { AudioRecorder } from '@/components/feature/AudioRecorder';
 import { AudioPlayer } from '@/components/feature/AudioPlayer';
+import { TagPicker } from '@/components/feature/TagPicker';
+import { useTags } from '@/hooks/useTags';
 import { useAlert } from '@/template';
 
 export default function NoteDetailScreen() {
@@ -44,6 +46,7 @@ export default function NoteDetailScreen() {
   const { loading: aiLoading, error: aiError, improveText, summarize, generateTitle, extractPoints, toList, translate } = useAI();
   const { settings } = useSettings();
   const { folders } = useFolders();
+  const { tags } = useTags();
   const { showAlert } = useAlert();
   const { t } = useTranslation();
   
@@ -56,6 +59,10 @@ export default function NoteDetailScreen() {
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [showAudioRecorder, setShowAudioRecorder] = useState(false);
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const [timeSpent, setTimeSpent] = useState(0);
+  const [isActive, setIsActive] = useState(true);
+  const startTimeRef = useRef(Date.now());
   
   const contentInputRef = useRef<TextInput>(null);
   const pulseAnim = useSharedValue(1);
@@ -78,7 +85,9 @@ export default function NoteDetailScreen() {
   }));
 
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+  const charCount = content.length;
   const currentFolder = folders.find(f => f.id === note?.folderId);
+  const noteTags = tags.filter(t => note?.tagIds?.includes(t.id));
   const audioAttachments = note?.attachments?.filter(a => a.type === 'audio') || [];
   const imageAttachments = note?.attachments?.filter(a => a.type === 'image') || [];
 
@@ -88,8 +97,35 @@ export default function NoteDetailScreen() {
       setNote(foundNote);
       setTitle(foundNote.title);
       setContent(foundNote.content);
+      setTimeSpent(foundNote.timeSpent || 0);
+      startTimeRef.current = Date.now();
     }
   }, [id, notes]);
+
+  // Track time spent on note
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isActive && note) {
+        setTimeSpent(prev => prev + 1);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isActive, note]);
+
+  // Save time spent on unmount or when leaving
+  useEffect(() => {
+    return () => {
+      if (note && timeSpent > 0) {
+        const updatedNote = {
+          ...note,
+          timeSpent: (note.timeSpent || 0) + timeSpent,
+          lastOpenedAt: Date.now(),
+        };
+        saveNote(updatedNote);
+      }
+    };
+  }, [note, timeSpent]);
 
   useEffect(() => {
     if (note) {
@@ -107,11 +143,15 @@ export default function NoteDetailScreen() {
       ...note,
       title: title.trim() || t('titlePlaceholder').replace('...', ''),
       content,
+      timeSpent: (note.timeSpent || 0) + timeSpent,
+      lastOpenedAt: Date.now(),
       updatedAt: Date.now(),
       attachments: note.attachments || [],
     };
     
     await saveNote(updatedNote);
+    setTimeSpent(0);
+    startTimeRef.current = Date.now();
     setHasChanges(false);
     showAlert(t('saved'), 'تم حفظ الملاحظة بنجاح');
   };
@@ -226,6 +266,26 @@ export default function NoteDetailScreen() {
     } else {
       showAlert(t('error'), result.error || t('shareError'));
     }
+  };
+
+  const handleTagsChange = async (tagIds: string[]) => {
+    if (!note) return;
+    const updatedNote = { ...note, tagIds, updatedAt: Date.now() };
+    await saveNote(updatedNote);
+    setNote(updatedNote);
+  };
+
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}س ${minutes}د`;
+    } else if (minutes > 0) {
+      return `${minutes}د ${secs}ث`;
+    }
+    return `${secs}ث`;
   };
 
   const handleAudioRecorded = async (uri: string, duration: number) => {
@@ -362,6 +422,17 @@ export default function NoteDetailScreen() {
                 <MaterialIcons name="create-new-folder" size={20} color={theme.colors.textSecondary} />
               </Pressable>
             )}
+            <Pressable
+              style={styles.tagsButton}
+              onPress={() => setShowTagPicker(true)}
+            >
+              <MaterialIcons name="local-offer" size={20} color={theme.colors.primary} />
+              {noteTags.length > 0 && (
+                <View style={styles.tagsBadge}>
+                  <Text style={styles.tagsBadgeText}>{noteTags.length}</Text>
+                </View>
+              )}
+            </Pressable>
             {hasChanges && (
               <View style={styles.unsavedIndicator}>
                 <Text style={styles.unsavedText}>{t('unsaved')}</Text>
@@ -505,9 +576,20 @@ export default function NoteDetailScreen() {
           </Pressable>
           
           <View style={styles.stats}>
-            <Text style={styles.statText}>{wordCount} {t('words')}</Text>
+            <View style={styles.statItem}>
+              <MaterialIcons name="article" size={16} color={theme.colors.textTertiary} />
+              <Text style={styles.statText}>{wordCount} كلمة</Text>
+            </View>
             <Text style={styles.statSeparator}>•</Text>
-            <Text style={styles.statText}>{content.length} {t('characters')}</Text>
+            <View style={styles.statItem}>
+              <MaterialIcons name="text-fields" size={16} color={theme.colors.textTertiary} />
+              <Text style={styles.statText}>{charCount} حرف</Text>
+            </View>
+            <Text style={styles.statSeparator}>•</Text>
+            <View style={styles.statItem}>
+              <MaterialIcons name="schedule" size={16} color={theme.colors.primary} />
+              <Text style={[styles.statText, styles.timeText]}>{formatTime(timeSpent)}</Text>
+            </View>
           </View>
         </View>
 
@@ -544,6 +626,13 @@ export default function NoteDetailScreen() {
             }
           }}
           onClose={() => setShowFolderPicker(false)}
+        />
+
+        <TagPicker
+          visible={showTagPicker}
+          selectedTagIds={note?.tagIds || []}
+          onSelect={handleTagsChange}
+          onClose={() => setShowTagPicker(false)}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -604,6 +693,29 @@ const styles = StyleSheet.create({
   
   addFolderButton: {
     padding: theme.spacing.xs,
+  },
+
+  tagsButton: {
+    position: 'relative',
+    padding: theme.spacing.xs,
+  },
+
+  tagsBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: theme.colors.primary,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  tagsBadgeText: {
+    fontSize: 10,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.background,
   },
   
   content: {
@@ -677,12 +789,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
+    flexWrap: 'wrap',
+  },
+
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   
   statText: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textTertiary,
     fontWeight: theme.fontWeight.medium,
+  },
+
+  timeText: {
+    color: theme.colors.primary,
   },
   
   statSeparator: {

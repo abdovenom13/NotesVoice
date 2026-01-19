@@ -10,3 +10,5 @@ export { MediaPickerMenu } from './MediaPickerMenu';
 export { FolderPicker } from './FolderPicker';
 export { AudioRecorder } from './AudioRecorder';
 export { AudioPlayer } from './AudioPlayer';
+export { LockScreen } from './LockScreen';
+export { TagPicker } from './TagPicker';

@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Switch, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Switch, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '@/constants/theme';
 import { useSettings } from '@/hooks/useSettings';
+import { useSecurity } from '@/hooks/useSecurity';
 import { useTranslation } from '@/hooks/useTranslation';
 import { dataService } from '@/services/dataService';
 import { useAlert } from '@/template';
 import type { AIModel } from '@/contexts/SettingsContext';
+import type { SecurityMethod } from '@/contexts/SecurityContext';
 
 const AI_MODELS = [
   { id: 'gemini-flash' as AIModel, name: 'Gemini Flash', desc: 'سريع ومتوازن - الافتراضي' },
@@ -39,6 +41,7 @@ const LANGUAGES = [
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { settings, updateSettings, resetSettings } = useSettings();
+  const { settings: securitySettings, updateSecurityMethod, updateAutoLockDelay, isBiometricAvailable } = useSecurity();
   const { t } = useTranslation();
   const { showAlert } = useAlert();
   const [storageInfo, setStorageInfo] = useState({ used: '...', available: '...' });
@@ -48,6 +51,10 @@ export default function SettingsScreen() {
   const [showFontPicker, setShowFontPicker] = useState(false);
   const [showImageSizePicker, setShowImageSizePicker] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [showSecurityPicker, setShowSecurityPicker] = useState(false);
+  const [showPatternSetup, setShowPatternSetup] = useState(false);
+  const [patternInput, setPatternInput] = useState<number[]>([]);
+  const [confirmPattern, setConfirmPattern] = useState<number[]>([]);
 
   useEffect(() => {
     loadStorageInfo();
@@ -105,6 +112,61 @@ export default function SettingsScreen() {
   const currentFontSize = FONT_SIZES.find(f => f.id === settings.fontSize);
   const currentImageSize = MAX_IMAGE_SIZES.find(s => s.value === settings.maxImageSize);
   const currentLanguage = LANGUAGES.find(l => l.id === settings.language);
+
+  const SECURITY_METHODS = [
+    { id: 'none' as SecurityMethod, name: 'بدون قفل', available: true },
+    { id: 'biometric' as SecurityMethod, name: 'البصمة/الوجه', available: isBiometricAvailable },
+    { id: 'pattern' as SecurityMethod, name: 'النمط', available: true },
+  ];
+
+  const currentSecurityMethod = SECURITY_METHODS.find(m => m.id === securitySettings.method);
+
+  const handleSecurityMethodChange = async (method: SecurityMethod) => {
+    if (method === 'pattern') {
+      setShowSecurityPicker(false);
+      setShowPatternSetup(true);
+    } else {
+      await updateSecurityMethod(method);
+      setShowSecurityPicker(false);
+      showAlert('تم', 'تم تحديث طريقة القفل');
+    }
+  };
+
+  const handlePatternDot = (index: number) => {
+    if (confirmPattern.length > 0) {
+      if (confirmPattern.includes(index)) return;
+      const newPattern = [...confirmPattern, index];
+      setConfirmPattern(newPattern);
+      
+      if (newPattern.length >= 4) {
+        verifyPatternSetup(newPattern);
+      }
+    } else {
+      if (patternInput.includes(index)) return;
+      const newPattern = [...patternInput, index];
+      setPatternInput(newPattern);
+      
+      if (newPattern.length >= 4) {
+        showAlert('تأكيد', 'الرجاء إعادة رسم النمط للتأكيد', [
+          { text: 'إعادة', style: 'cancel', onPress: () => setPatternInput([]) },
+        ]);
+      }
+    }
+  };
+
+  const verifyPatternSetup = async (confirm: number[]) => {
+    if (patternInput.join('') === confirm.join('')) {
+      await updateSecurityMethod('pattern', patternInput.join(''));
+      setShowPatternSetup(false);
+      setPatternInput([]);
+      setConfirmPattern([]);
+      showAlert('تم', 'تم تعيين النمط بنجاح');
+    } else {
+      showAlert('خطأ', 'النمطان غير متطابقين، حاول مرة أخرى');
+      setPatternInput([]);
+      setConfirmPattern([]);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]} edges={['top']}>
@@ -378,6 +440,53 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
+        {/* Security Settings */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>الأمان والخصوصية</Text>
+          
+          <Pressable
+            style={styles.settingRow}
+            onPress={() => setShowSecurityPicker(!showSecurityPicker)}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>طريقة القفل</Text>
+              <Text style={styles.settingValue}>{currentSecurityMethod?.name}</Text>
+            </View>
+            <MaterialIcons
+              name={showSecurityPicker ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+              size={24}
+              color={theme.colors.textSecondary}
+            />
+          </Pressable>
+
+          {showSecurityPicker && (
+            <View style={styles.picker}>
+              {SECURITY_METHODS.filter(m => m.available).map((method) => (
+                <Pressable
+                  key={method.id}
+                  style={[
+                    styles.pickerItem,
+                    securitySettings.method === method.id && styles.pickerItemActive,
+                  ]}
+                  onPress={() => handleSecurityMethodChange(method.id)}
+                >
+                  <Text
+                    style={[
+                      styles.pickerItemText,
+                      securitySettings.method === method.id && styles.pickerItemTextActive,
+                    ]}
+                  >
+                    {method.name}
+                  </Text>
+                  {securitySettings.method === method.id && (
+                    <MaterialIcons name="check" size={24} color={theme.colors.primary} />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+
         {/* General Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('generalSettings')}</Text>
@@ -410,6 +519,57 @@ export default function SettingsScreen() {
           <Text style={styles.appInfoText}>تطبيق الملاحظات الذكي</Text>
           <Text style={styles.appInfoVersion}>الإصدار 1.0.0</Text>
         </View>
+
+        {/* Pattern Setup Modal */}
+        <Modal
+          visible={showPatternSetup}
+          animationType="slide"
+          transparent
+          onRequestClose={() => {
+            setShowPatternSetup(false);
+            setPatternInput([]);
+            setConfirmPattern([]);
+          }}
+        >
+          <View style={styles.patternModal}>
+            <View style={styles.patternContainer}>
+              <Text style={styles.patternTitle}>
+                {confirmPattern.length > 0 ? 'أعد رسم النمط' : 'ارسم نمطاً (4 نقاط على الأقل)'}
+              </Text>
+              
+              <View style={styles.patternGrid}>
+                {Array.from({ length: 9 }).map((_, index) => {
+                  const currentPattern = confirmPattern.length > 0 ? confirmPattern : patternInput;
+                  const isSelected = currentPattern.includes(index);
+                  
+                  return (
+                    <Pressable
+                      key={index}
+                      onPress={() => handlePatternDot(index)}
+                      style={styles.patternDot}
+                    >
+                      <View style={[
+                        styles.patternDotInner,
+                        isSelected && styles.patternDotSelected,
+                      ]} />
+                    </Pressable>
+                  );
+                })}
+              </View>
+              
+              <Pressable
+                onPress={() => {
+                  setShowPatternSetup(false);
+                  setPatternInput([]);
+                  setConfirmPattern([]);
+                }}
+                style={styles.patternCancel}
+              >
+                <Text style={styles.patternCancelText}>إلغاء</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -612,5 +772,64 @@ const styles = StyleSheet.create({
   
   buttonPressed: {
     opacity: 0.7,
+  },
+
+  patternModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+  },
+
+  patternContainer: {
+    alignItems: 'center',
+    gap: theme.spacing.xl,
+  },
+
+  patternTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
+    textAlign: 'center',
+  },
+
+  patternGrid: {
+    width: 240,
+    height: 240,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+
+  patternDot: {
+    width: 80,
+    height: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  patternDotInner: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+
+  patternDotSelected: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+    transform: [{ scale: 1.5 }],
+  },
+
+  patternCancel: {
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.lg,
+  },
+
+  patternCancelText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.textSecondary,
   },
 });
