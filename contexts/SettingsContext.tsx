@@ -10,6 +10,7 @@ export interface Settings {
   language: 'ar' | 'en';
   showTimestamps: boolean;
   maxImageSize: number; // MB
+  maxFileSize: number; // MB for exports/imports
 }
 
 interface SettingsContextType {
@@ -28,6 +29,7 @@ const DEFAULT_SETTINGS: Settings = {
   language: 'ar',
   showTimestamps: true,
   maxImageSize: 5,
+  maxFileSize: 100,
 };
 
 export function SettingsProvider({ children }: { children: ReactNode }) {

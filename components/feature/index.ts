@@ -8,3 +8,5 @@ export { ChatInput } from './ChatInput';
 export { MediaAttachments } from './MediaAttachments';
 export { MediaPickerMenu } from './MediaPickerMenu';
 export { FolderPicker } from './FolderPicker';
+export { AudioRecorder } from './AudioRecorder';
+export { AudioPlayer } from './AudioPlayer';

@@ -1,9 +1,10 @@
 export interface MediaAttachment {
   id: string;
   uri: string;
-  type: 'image' | 'video';
+  type: 'image' | 'video' | 'audio';
   name: string;
   size: number;
+  duration?: number; // for audio/video
   createdAt: number;
 }
 

@@ -21,14 +21,19 @@ import { useTextFormat } from '@/hooks/useTextFormat';
 import { useAI } from '@/hooks/useAI';
 import { useSettings } from '@/hooks/useSettings';
 import { useFolders } from '@/hooks/useFolders';
+import { useTranslation } from '@/hooks/useTranslation';
+import { dataService } from '@/services/dataService';
 import { Note, MediaAttachment } from '@/services/noteService';
 import { mediaService } from '@/services/mediaService';
+import { audioService } from '@/services/audioService';
 import { FormatToolbar } from '@/components/feature/FormatToolbar';
 import { RichTextPreview } from '@/components/feature/RichTextPreview';
 import { AIMenu } from '@/components/feature/AIMenu';
 import { MediaAttachments } from '@/components/feature/MediaAttachments';
 import { MediaPickerMenu } from '@/components/feature/MediaPickerMenu';
 import { FolderPicker } from '@/components/feature/FolderPicker';
+import { AudioRecorder } from '@/components/feature/AudioRecorder';
+import { AudioPlayer } from '@/components/feature/AudioPlayer';
 import { useAlert } from '@/template';
 
 export default function NoteDetailScreen() {
@@ -40,6 +45,7 @@ export default function NoteDetailScreen() {
   const { settings } = useSettings();
   const { folders } = useFolders();
   const { showAlert } = useAlert();
+  const { t } = useTranslation();
   
   const [note, setNote] = useState<Note | null>(null);
   const [title, setTitle] = useState('');
@@ -49,6 +55,7 @@ export default function NoteDetailScreen() {
   const [showAIMenu, setShowAIMenu] = useState(false);
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [showAudioRecorder, setShowAudioRecorder] = useState(false);
   
   const contentInputRef = useRef<TextInput>(null);
   const pulseAnim = useSharedValue(1);
@@ -72,6 +79,8 @@ export default function NoteDetailScreen() {
 
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
   const currentFolder = folders.find(f => f.id === note?.folderId);
+  const audioAttachments = note?.attachments?.filter(a => a.type === 'audio') || [];
+  const imageAttachments = note?.attachments?.filter(a => a.type === 'image') || [];
 
   useEffect(() => {
     const foundNote = notes.find(n => n.id === id);
@@ -96,7 +105,7 @@ export default function NoteDetailScreen() {
     
     const updatedNote = {
       ...note,
-      title: title.trim() || 'ملاحظة بدون عنوان',
+      title: title.trim() || t('titlePlaceholder').replace('...', ''),
       content,
       updatedAt: Date.now(),
       attachments: note.attachments || [],
@@ -104,14 +113,14 @@ export default function NoteDetailScreen() {
     
     await saveNote(updatedNote);
     setHasChanges(false);
-    showAlert('تم الحفظ', 'تم حفظ الملاحظة بنجاح');
+    showAlert(t('saved'), 'تم حفظ الملاحظة بنجاح');
   };
 
   const handleDelete = () => {
-    showAlert('حذف الملاحظة', 'هل أنت متأكد من حذف هذه الملاحظة؟', [
-      { text: 'إلغاء', style: 'cancel' },
+    showAlert(t('deleteNote'), t('deleteConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'حذف',
+        text: t('delete'),
         style: 'destructive',
         onPress: async () => {
           if (note) {
@@ -145,7 +154,7 @@ export default function NoteDetailScreen() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'فشل إضافة الصورة';
-      showAlert('خطأ', message);
+      showAlert(t('error'), message);
     }
   };
 
@@ -164,12 +173,12 @@ export default function NoteDetailScreen() {
     };
     await saveNote(updatedNote);
     setNote(updatedNote);
-    showAlert('تم', 'تم حذف الصورة بنجاح');
+    showAlert(t('done'), 'تم حذف الوسائط بنجاح');
   };
 
   const handleVoiceInput = () => {
     if (!isAvailable) {
-      showAlert('غير متوفر', 'ميزة التعرف على الصوت غير متوفرة في هذا المتصفح');
+      showAlert(t('warning'), 'ميزة التعرف على الصوت غير متوفرة');
       return;
     }
 
@@ -179,7 +188,7 @@ export default function NoteDetailScreen() {
         setHasChanges(true);
       },
       (error) => {
-        showAlert('خطأ', 'فشل التعرف على الصوت: ' + error);
+        showAlert(t('error'), 'فشل التعرف على الصوت: ' + error);
       }
     );
   };
@@ -209,9 +218,60 @@ export default function NoteDetailScreen() {
     updateSelection(start, end, content);
   };
 
+  const handleShareNote = async () => {
+    if (!note) return;
+    const result = await dataService.shareNote(note);
+    if (result.success) {
+      showAlert(t('success'), t('shareSuccess'));
+    } else {
+      showAlert(t('error'), result.error || t('shareError'));
+    }
+  };
+
+  const handleAudioRecorded = async (uri: string, duration: number) => {
+    if (!note) return;
+
+    const audioAttachment: MediaAttachment = {
+      id: Date.now().toString() + Math.random(),
+      uri,
+      type: 'audio',
+      name: `audio_${Date.now()}.m4a`,
+      size: 0,
+      duration,
+      createdAt: Date.now(),
+    };
+
+    const updatedNote = {
+      ...note,
+      attachments: [...(note.attachments || []), audioAttachment],
+      updatedAt: Date.now(),
+    };
+    await saveNote(updatedNote);
+    setNote(updatedNote);
+    setShowAudioRecorder(false);
+    showAlert(t('done'), 'تم حفظ التسجيل الصوتي');
+  };
+
+  const handleRemoveAudio = async (id: string) => {
+    if (!note) return;
+
+    const attachment = note.attachments?.find(a => a.id === id);
+    if (attachment) {
+      await audioService.deleteAudio(attachment.uri);
+    }
+
+    const updatedNote = {
+      ...note,
+      attachments: note.attachments?.filter(a => a.id !== id) || [],
+      updatedAt: Date.now(),
+    };
+    await saveNote(updatedNote);
+    setNote(updatedNote);
+  };
+
   const handleAIAction = async (actionId: string) => {
     if (!content.trim()) {
-      showAlert('تنبيه', 'الرجاء كتابة نص أولاً');
+      showAlert(t('warning'), 'الرجاء كتابة نص أولاً');
       setShowAIMenu(false);
       return;
     }
@@ -231,7 +291,7 @@ export default function NoteDetailScreen() {
           if (result) {
             setTitle(result);
             setHasChanges(true);
-            showAlert('تم', 'تم توليد العنوان بنجاح');
+            showAlert(t('done'), 'تم توليد العنوان بنجاح');
           }
           setShowAIMenu(false);
           return;
@@ -252,12 +312,12 @@ export default function NoteDetailScreen() {
       if (result) {
         setContent(result);
         setHasChanges(true);
-        showAlert('تم', 'تمت المعالجة بنجاح');
+        showAlert(t('done'), 'تمت المعالجة بنجاح');
       } else if (aiError) {
-        showAlert('خطأ', aiError);
+        showAlert(t('error'), aiError);
       }
     } catch (error) {
-      showAlert('خطأ', 'حدث خطأ أثناء معالجة النص');
+      showAlert(t('error'), 'حدث خطأ أثناء معالجة النص');
     } finally {
       setShowAIMenu(false);
     }
@@ -267,7 +327,7 @@ export default function NoteDetailScreen() {
     return (
       <SafeAreaView style={commonStyles.container}>
         <View style={[commonStyles.container, commonStyles.centerContent]}>
-          <Text style={styles.errorText}>الملاحظة غير موجودة</Text>
+          <Text style={styles.errorText}>{t('error')}: الملاحظة غير موجودة</Text>
         </View>
       </SafeAreaView>
     );
@@ -304,9 +364,16 @@ export default function NoteDetailScreen() {
             )}
             {hasChanges && (
               <View style={styles.unsavedIndicator}>
-                <Text style={styles.unsavedText}>غير محفوظ</Text>
+                <Text style={styles.unsavedText}>{t('unsaved')}</Text>
               </View>
             )}
+            <Pressable 
+              onPress={handleShareNote} 
+              hitSlop={12} 
+              style={styles.iconButton}
+            >
+              <MaterialIcons name="share" size={24} color={theme.colors.textSecondary} />
+            </Pressable>
             <Pressable 
               onPress={() => setShowMediaPicker(true)} 
               hitSlop={12} 
@@ -335,6 +402,17 @@ export default function NoteDetailScreen() {
             <Pressable onPress={handleSave} hitSlop={12} style={styles.iconButton}>
               <MaterialIcons name="save" size={24} color={theme.colors.primary} />
             </Pressable>
+            <Pressable 
+              onPress={() => setShowAudioRecorder(!showAudioRecorder)} 
+              hitSlop={12} 
+              style={styles.iconButton}
+            >
+              <MaterialIcons 
+                name={showAudioRecorder ? 'mic-off' : 'mic'} 
+                size={24} 
+                color={showAudioRecorder ? theme.colors.error : theme.colors.textSecondary} 
+              />
+            </Pressable>
             <Pressable onPress={handleDelete} hitSlop={12} style={styles.iconButton}>
               <MaterialIcons name="delete" size={24} color={theme.colors.error} />
             </Pressable>
@@ -345,13 +423,37 @@ export default function NoteDetailScreen() {
           <TextInput
             value={title}
             onChangeText={setTitle}
-            placeholder="عنوان الملاحظة..."
+            placeholder={t('titlePlaceholder')}
             placeholderTextColor={theme.colors.textTertiary}
             style={styles.titleInput}
           />
           
+          {showAudioRecorder && (
+            <View style={styles.audioRecorderContainer}>
+              <AudioRecorder
+                onRecordingComplete={handleAudioRecorded}
+                onError={(error) => showAlert(t('error'), error)}
+              />
+            </View>
+          )}
+          
+          {audioAttachments.length > 0 && (
+            <View style={styles.audioContainer}>
+              <Text style={styles.audioTitle}>التسجيلات الصوتية ({audioAttachments.length})</Text>
+              {audioAttachments.map((audio) => (
+                <AudioPlayer
+                  key={audio.id}
+                  uri={audio.uri}
+                  duration={audio.duration || 0}
+                  onRemove={() => handleRemoveAudio(audio.id)}
+                  editable={!previewMode}
+                />
+              ))}
+            </View>
+          )}
+          
           <MediaAttachments
-            attachments={note.attachments || []}
+            attachments={imageAttachments}
             onRemove={handleRemoveMedia}
             editable={!previewMode}
           />
@@ -371,7 +473,7 @@ export default function NoteDetailScreen() {
                 value={content}
                 onChangeText={setContent}
                 onSelectionChange={handleSelectionChange}
-                placeholder="ابدأ الكتابة هنا... حدد النص ثم اضغط على أزرار التنسيق"
+                placeholder={t('contentPlaceholder')}
                 placeholderTextColor={theme.colors.textTertiary}
                 style={styles.contentInput}
                 multiline
@@ -398,14 +500,14 @@ export default function NoteDetailScreen() {
               />
             </Animated.View>
             <Text style={[styles.voiceText, isListening && styles.voiceTextActive]}>
-              {isListening ? 'استمع...' : 'تسجيل صوتي'}
+              {isListening ? t('listening') : t('voiceRecording')}
             </Text>
           </Pressable>
           
           <View style={styles.stats}>
-            <Text style={styles.statText}>{wordCount} كلمة</Text>
+            <Text style={styles.statText}>{wordCount} {t('words')}</Text>
             <Text style={styles.statSeparator}>•</Text>
-            <Text style={styles.statText}>{content.length} حرف</Text>
+            <Text style={styles.statText}>{content.length} {t('characters')}</Text>
           </View>
         </View>
 
@@ -591,6 +693,24 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: theme.fontSize.lg,
     color: theme.colors.error,
+  },
+  
+  audioRecorderContainer: {
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.background,
+  },
+  
+  audioContainer: {
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.background,
+    gap: theme.spacing.sm,
+  },
+  
+  audioTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
   },
   
   previewContainer: {

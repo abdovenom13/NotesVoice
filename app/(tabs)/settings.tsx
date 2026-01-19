@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Switch, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Switch, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '@/constants/theme';
 import { useSettings } from '@/hooks/useSettings';
+import { useTranslation } from '@/hooks/useTranslation';
+import { dataService } from '@/services/dataService';
+import { useAlert } from '@/template';
 import type { AIModel } from '@/contexts/SettingsContext';
 
 const AI_MODELS = [
@@ -24,27 +27,74 @@ const MAX_IMAGE_SIZES = [
   { value: 3, label: '3 MB' },
   { value: 5, label: '5 MB' },
   { value: 10, label: '10 MB' },
+  { value: 20, label: '20 MB' },
+  { value: 50, label: '50 MB' },
+];
+
+const LANGUAGES = [
+  { id: 'ar' as const, name: 'العربية', nameEn: 'Arabic' },
+  { id: 'en' as const, name: 'الإنجليزية', nameEn: 'English' },
 ];
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { settings, updateSettings, resetSettings } = useSettings();
+  const { t } = useTranslation();
+  const { showAlert } = useAlert();
+  const [storageInfo, setStorageInfo] = useState({ used: '...', available: '...' });
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [showFontPicker, setShowFontPicker] = useState(false);
   const [showImageSizePicker, setShowImageSizePicker] = useState(false);
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+
+  useEffect(() => {
+    loadStorageInfo();
+  }, []);
+
+  const loadStorageInfo = async () => {
+    const info = await dataService.getStorageInfo();
+    setStorageInfo(info);
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    const result = await dataService.exportData();
+    setIsExporting(false);
+    
+    if (result.success) {
+      showAlert(t('success'), t('exportSuccess'));
+    } else {
+      showAlert(t('error'), result.error || t('exportError'));
+    }
+  };
+
+  const handleImport = async () => {
+    setIsImporting(true);
+    const result = await dataService.importData();
+    setIsImporting(false);
+    
+    if (result.success && result.count !== undefined) {
+      showAlert(t('success'), t('importSuccess', { count: result.count }));
+      await loadStorageInfo();
+    } else if (result.error) {
+      showAlert(t('error'), result.error);
+    }
+  };
 
   const handleReset = () => {
-    Alert.alert(
-      'إعادة تعيين الإعدادات',
-      'هل أنت متأكد من إعادة تعيين جميع الإعدادات إلى القيم الافتراضية؟',
+    showAlert(
+      t('resetSettings'),
+      'هل أنت متأكد من إعادة تعيين جميع الإعدادات؟',
       [
-        { text: 'إلغاء', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
           text: 'إعادة تعيين',
           style: 'destructive',
           onPress: () => {
             resetSettings();
-            Alert.alert('تم', 'تم إعادة تعيين الإعدادات بنجاح');
+            showAlert(t('done'), 'تم إعادة تعيين الإعدادات بنجاح');
           },
         },
       ]
@@ -54,27 +104,28 @@ export default function SettingsScreen() {
   const currentModel = AI_MODELS.find(m => m.id === settings.aiModel);
   const currentFontSize = FONT_SIZES.find(f => f.id === settings.fontSize);
   const currentImageSize = MAX_IMAGE_SIZES.find(s => s.value === settings.maxImageSize);
+  const currentLanguage = LANGUAGES.find(l => l.id === settings.language);
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]} edges={['top']}>
       <LinearGradient colors={['#1a1a1a', '#0a0a0a']} style={styles.header}>
         <View style={styles.titleContainer}>
           <MaterialIcons name="settings" size={32} color={theme.colors.primary} />
-          <Text style={styles.title}>الإعدادات</Text>
+          <Text style={styles.title}>{t('settings')}</Text>
         </View>
       </LinearGradient>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
         {/* AI Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>إعدادات الذكاء الاصطناعي</Text>
+          <Text style={styles.sectionTitle}>{t('aiSettings')}</Text>
           
           <Pressable
             style={styles.settingRow}
             onPress={() => setShowModelPicker(!showModelPicker)}
           >
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>نموذج الذكاء الاصطناعي</Text>
+              <Text style={styles.settingLabel}>{t('aiModel')}</Text>
               <Text style={styles.settingValue}>{currentModel?.name}</Text>
             </View>
             <MaterialIcons
@@ -120,14 +171,14 @@ export default function SettingsScreen() {
 
         {/* Display Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>إعدادات العرض</Text>
+          <Text style={styles.sectionTitle}>{t('displaySettings')}</Text>
           
           <Pressable
             style={styles.settingRow}
             onPress={() => setShowFontPicker(!showFontPicker)}
           >
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>حجم الخط</Text>
+              <Text style={styles.settingLabel}>{t('fontSize')}</Text>
               <Text style={styles.settingValue}>{currentFontSize?.name}</Text>
             </View>
             <MaterialIcons
@@ -168,9 +219,54 @@ export default function SettingsScreen() {
             </View>
           )}
 
+          <Pressable
+            style={styles.settingRow}
+            onPress={() => setShowLanguagePicker(!showLanguagePicker)}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>{t('language')}</Text>
+              <Text style={styles.settingValue}>{settings.language === 'ar' ? 'العربية' : 'English'}</Text>
+            </View>
+            <MaterialIcons
+              name={showLanguagePicker ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+              size={24}
+              color={theme.colors.textSecondary}
+            />
+          </Pressable>
+
+          {showLanguagePicker && (
+            <View style={styles.picker}>
+              {LANGUAGES.map((lang) => (
+                <Pressable
+                  key={lang.id}
+                  style={[
+                    styles.pickerItem,
+                    settings.language === lang.id && styles.pickerItemActive,
+                  ]}
+                  onPress={() => {
+                    updateSettings({ language: lang.id });
+                    setShowLanguagePicker(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.pickerItemText,
+                      settings.language === lang.id && styles.pickerItemTextActive,
+                    ]}
+                  >
+                    {lang.name} ({lang.nameEn})
+                  </Text>
+                  {settings.language === lang.id && (
+                    <MaterialIcons name="check" size={24} color={theme.colors.primary} />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          )}
+
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>إظهار التوقيت</Text>
+              <Text style={styles.settingLabel}>{t('showTimestamps')}</Text>
               <Text style={styles.settingDesc}>عرض وقت إنشاء وتعديل الملاحظات</Text>
             </View>
             <Switch
@@ -184,14 +280,14 @@ export default function SettingsScreen() {
 
         {/* Media Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>إعدادات الوسائط</Text>
+          <Text style={styles.sectionTitle}>{t('mediaSettings')}</Text>
           
           <Pressable
             style={styles.settingRow}
             onPress={() => setShowImageSizePicker(!showImageSizePicker)}
           >
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>الحد الأقصى لحجم الصورة</Text>
+              <Text style={styles.settingLabel}>{t('maxImageSize')}</Text>
               <Text style={styles.settingValue}>{currentImageSize?.label}</Text>
             </View>
             <MaterialIcons
@@ -232,13 +328,63 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* Data Management */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('dataSettings')}</Text>
+          
+          <View style={styles.storageInfo}>
+            <View style={styles.storageRow}>
+              <MaterialIcons name="storage" size={20} color={theme.colors.textSecondary} />
+              <Text style={styles.storageLabel}>{t('storageUsed')}:</Text>
+              <Text style={styles.storageValue}>{storageInfo.used}</Text>
+            </View>
+            <View style={styles.storageRow}>
+              <MaterialIcons name="cloud" size={20} color={theme.colors.textSecondary} />
+              <Text style={styles.storageLabel}>{t('storageAvailable')}:</Text>
+              <Text style={styles.storageValue}>{storageInfo.available}</Text>
+            </View>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.dataButton,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={handleExport}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <MaterialIcons name="file-download" size={20} color={theme.colors.primary} />
+            )}
+            <Text style={styles.dataButtonText}>{t('exportData')}</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.dataButton,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={handleImport}
+            disabled={isImporting}
+          >
+            {isImporting ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <MaterialIcons name="file-upload" size={20} color={theme.colors.primary} />
+            )}
+            <Text style={styles.dataButtonText}>{t('importData')}</Text>
+          </Pressable>
+        </View>
+
         {/* General Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>إعدادات عامة</Text>
+          <Text style={styles.sectionTitle}>{t('generalSettings')}</Text>
           
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>الحفظ التلقائي</Text>
+              <Text style={styles.settingLabel}>{t('autoSave')}</Text>
               <Text style={styles.settingDesc}>حفظ التغييرات تلقائياً أثناء الكتابة</Text>
             </View>
             <Switch
@@ -256,7 +402,7 @@ export default function SettingsScreen() {
           onPress={handleReset}
         >
           <MaterialIcons name="restore" size={20} color={theme.colors.error} />
-          <Text style={styles.resetButtonText}>إعادة تعيين جميع الإعدادات</Text>
+          <Text style={styles.resetButtonText}>{t('resetSettings')}</Text>
         </Pressable>
 
         {/* App Info */}
@@ -417,5 +563,54 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.textTertiary,
     marginTop: 4,
+  },
+  
+  storageInfo: {
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  
+  storageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  
+  storageLabel: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+    flex: 1,
+  },
+  
+  storageValue: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+    fontWeight: theme.fontWeight.semibold,
+  },
+  
+  dataButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+    marginBottom: theme.spacing.sm,
+  },
+  
+  dataButtonText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.primary,
+  },
+  
+  buttonPressed: {
+    opacity: 0.7,
   },
 });
