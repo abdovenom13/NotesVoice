@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type AIModel = 'gemini-flash' | 'gemini-pro' | 'gpt-5-mini' | 'gpt-5';
 
@@ -39,9 +40,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     loadSettings();
   }, []);
 
-  const loadSettings = () => {
+  const loadSettings = async () => {
     try {
-      const stored = localStorage.getItem('app-settings');
+      const stored = await AsyncStorage.getItem('app-settings');
       if (stored) {
         const parsed = JSON.parse(stored);
         setSettings({ ...DEFAULT_SETTINGS, ...parsed });
@@ -51,15 +52,23 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateSettings = (newSettings: Partial<Settings>) => {
+  const updateSettings = async (newSettings: Partial<Settings>) => {
     const updated = { ...settings, ...newSettings };
     setSettings(updated);
-    localStorage.setItem('app-settings', JSON.stringify(updated));
+    try {
+      await AsyncStorage.setItem('app-settings', JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
   };
 
-  const resetSettings = () => {
+  const resetSettings = async () => {
     setSettings(DEFAULT_SETTINGS);
-    localStorage.setItem('app-settings', JSON.stringify(DEFAULT_SETTINGS));
+    try {
+      await AsyncStorage.setItem('app-settings', JSON.stringify(DEFAULT_SETTINGS));
+    } catch (error) {
+      console.error('Error resetting settings:', error);
+    }
   };
 
   return (
