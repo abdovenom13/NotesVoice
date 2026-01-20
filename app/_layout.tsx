@@ -3,9 +3,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AlertProvider } from '@/template';
 import { StatusBar } from 'expo-status-bar';
 import { SettingsProvider } from '@/contexts/SettingsContext';
-import { FoldersProvider } from '@/contexts/FoldersContext';
+import { FoldersProvider } from '@/contexts/FoldersProvider';
 import { SecurityProvider } from '@/contexts/SecurityContext';
 import { TagsProvider } from '@/contexts/TagsContext';
+import { GamificationProvider } from '@/contexts/GamificationContext';
+import { TrashProvider } from '@/contexts/TrashContext';
 import { LockScreen } from '@/components/feature';
 import { useSecurity } from '@/hooks/useSecurity';
 
@@ -40,14 +42,18 @@ export default function RootLayout() {
     <AlertProvider>
       <SettingsProvider>
         <SecurityProvider>
-          <TagsProvider>
-            <FoldersProvider>
-              <SafeAreaProvider>
-                <StatusBar style="light" />
-                <AppContent />
-              </SafeAreaProvider>
-            </FoldersProvider>
-          </TagsProvider>
+          <GamificationProvider>
+            <TrashProvider>
+              <TagsProvider>
+                <FoldersProvider>
+                  <SafeAreaProvider>
+                    <StatusBar style="light" />
+                    <AppContent />
+                  </SafeAreaProvider>
+                </FoldersProvider>
+              </TagsProvider>
+            </TrashProvider>
+          </GamificationProvider>
         </SecurityProvider>
       </SettingsProvider>
     </AlertProvider>

@@ -14,3 +14,6 @@ export { LockScreen } from './LockScreen';
 export { TagPicker } from './TagPicker';
 export { PDFViewer } from './PDFViewer';
 export { PDFAttachments } from './PDFAttachments';
+export { StickerReward } from './StickerReward';
+export { TrashScreen } from './TrashScreen';
+export { FolderManager } from './FolderManager';
