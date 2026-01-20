@@ -12,15 +12,22 @@ interface TagPickerProps {
   onClose: () => void;
 }
 
+interface EditTagState {
+  id: string;
+  name: string;
+  color: string;
+}
+
 const TAG_COLORS = [
   '#EF4444', '#F59E0B', '#10B981', '#3B82F6', 
   '#8B5CF6', '#EC4899', '#14B8A6', '#F97316',
 ];
 
 export function TagPicker({ visible, selectedTagIds, onSelect, onClose }: TagPickerProps) {
-  const { tags, createTag, deleteTag } = useTags();
+  const { tags, createTag, deleteTag, updateTag } = useTags();
   const { showAlert } = useAlert();
   const [showCreate, setShowCreate] = useState(false);
+  const [editingTag, setEditingTag] = useState<EditTagState | null>(null);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
 
@@ -58,6 +65,26 @@ export function TagPicker({ visible, selectedTagIds, onSelect, onClose }: TagPic
     ]);
   };
 
+  const handleEditTag = (tag: any) => {
+    setEditingTag({ id: tag.id, name: tag.name, color: tag.color });
+    setShowCreate(false);
+  };
+
+  const handleUpdateTag = async () => {
+    if (!editingTag || !editingTag.name.trim()) {
+      showAlert('تنبيه', 'الرجاء إدخال اسم الوسم');
+      return;
+    }
+
+    await updateTag(editingTag.id, editingTag.name.trim(), editingTag.color);
+    setEditingTag(null);
+    showAlert('تم', 'تم تحديث الوسم بنجاح');
+  };
+
+  const cancelEdit = () => {
+    setEditingTag(null);
+  };
+
   return (
     <Modal
       visible={visible}
@@ -77,7 +104,7 @@ export function TagPicker({ visible, selectedTagIds, onSelect, onClose }: TagPic
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {!showCreate ? (
+            {!showCreate && !editingTag ? (
               <>
                 <View style={styles.tagsGrid}>
                   {tags.map((tag) => {
@@ -85,24 +112,34 @@ export function TagPicker({ visible, selectedTagIds, onSelect, onClose }: TagPic
                     const isPreset = ['work', 'personal', 'ideas', 'important', 'study'].includes(tag.id);
                     
                     return (
-                      <Pressable
-                        key={tag.id}
-                        onPress={() => handleToggleTag(tag.id)}
-                        onLongPress={() => !isPreset && handleDeleteTag(tag.id)}
-                        style={[
-                          styles.tag,
-                          { borderColor: tag.color },
-                          isSelected && { backgroundColor: tag.color + '20' },
-                        ]}
-                      >
-                        <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
-                        <Text style={[styles.tagText, isSelected && { color: tag.color }]}>
-                          {tag.name}
-                        </Text>
-                        {isSelected && (
-                          <MaterialIcons name="check" size={16} color={tag.color} />
+                      <View key={tag.id} style={styles.tagWrapper}>
+                        <Pressable
+                          onPress={() => handleToggleTag(tag.id)}
+                          onLongPress={() => !isPreset && handleDeleteTag(tag.id)}
+                          style={[
+                            styles.tag,
+                            { borderColor: tag.color },
+                            isSelected && { backgroundColor: tag.color + '20' },
+                          ]}
+                        >
+                          <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
+                          <Text style={[styles.tagText, isSelected && { color: tag.color }]}>
+                            {tag.name}
+                          </Text>
+                          {isSelected && (
+                            <MaterialIcons name="check" size={16} color={tag.color} />
+                          )}
+                        </Pressable>
+                        {!isPreset && (
+                          <Pressable
+                            onPress={() => handleEditTag(tag)}
+                            style={styles.editButton}
+                            hitSlop={8}
+                          >
+                            <MaterialIcons name="edit" size={14} color={theme.colors.textSecondary} />
+                          </Pressable>
                         )}
-                      </Pressable>
+                      </View>
                     );
                   })}
                 </View>
@@ -118,6 +155,61 @@ export function TagPicker({ visible, selectedTagIds, onSelect, onClose }: TagPic
                   <Text style={styles.createButtonText}>إنشاء وسم جديد</Text>
                 </Pressable>
               </>
+            ) : editingTag ? (
+              <View style={styles.createForm}>
+                <Text style={styles.formTitle}>تعديل الوسم</Text>
+                <TextInput
+                  value={editingTag.name}
+                  onChangeText={(text) => setEditingTag({ ...editingTag, name: text })}
+                  placeholder="اسم الوسم..."
+                  placeholderTextColor={theme.colors.textTertiary}
+                  style={styles.input}
+                  maxLength={20}
+                />
+
+                <Text style={styles.colorLabel}>اختر اللون:</Text>
+                <View style={styles.colorsGrid}>
+                  {TAG_COLORS.map((color) => (
+                    <Pressable
+                      key={color}
+                      onPress={() => setEditingTag({ ...editingTag, color })}
+                      style={[
+                        styles.colorOption,
+                        { backgroundColor: color },
+                        editingTag.color === color && styles.colorOptionSelected,
+                      ]}
+                    >
+                      {editingTag.color === color && (
+                        <MaterialIcons name="check" size={20} color="#fff" />
+                      )}
+                    </Pressable>
+                  ))}
+                </View>
+
+                <View style={styles.formActions}>
+                  <Pressable
+                    onPress={cancelEdit}
+                    style={({ pressed }) => [
+                      styles.formButton,
+                      styles.cancelButton,
+                      pressed && styles.formButtonPressed,
+                    ]}
+                  >
+                    <Text style={styles.cancelButtonText}>إلغاء</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={handleUpdateTag}
+                    style={({ pressed }) => [
+                      styles.formButton,
+                      styles.confirmButton,
+                      pressed && styles.formButtonPressed,
+                    ]}
+                  >
+                    <Text style={styles.confirmButtonText}>تحديث</Text>
+                  </Pressable>
+                </View>
+              </View>
             ) : (
               <View style={styles.createForm}>
                 <TextInput
@@ -228,6 +320,24 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   
+  tagWrapper: {
+    position: 'relative',
+  },
+  
+  editButton: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -276,6 +386,13 @@ const styles = StyleSheet.create({
   
   createForm: {
     gap: theme.spacing.md,
+  },
+  
+  formTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
   },
   
   input: {

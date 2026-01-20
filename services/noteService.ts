@@ -1,10 +1,11 @@
 export interface MediaAttachment {
   id: string;
   uri: string;
-  type: 'image' | 'video' | 'audio';
+  type: 'image' | 'video' | 'audio' | 'pdf';
   name: string;
   size: number;
   duration?: number; // for audio/video
+  pageCount?: number; // for PDF
   createdAt: number;
 }
 

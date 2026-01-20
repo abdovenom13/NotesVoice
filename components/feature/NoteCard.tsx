@@ -17,6 +17,9 @@ export function NoteCard({ note, onPress, onToggleFavorite }: NoteCardProps) {
     month: 'short',
     day: 'numeric',
   });
+  
+  const wordCount = note.content.trim() ? note.content.trim().split(/\s+/).length : 0;
+  const charCount = note.content.length;
 
   return (
     <Pressable
@@ -51,7 +54,17 @@ export function NoteCard({ note, onPress, onToggleFavorite }: NoteCardProps) {
       )}
       
       <View style={styles.footer}>
-        <Text style={styles.date}>{date}</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.stat}>
+            <MaterialIcons name="article" size={14} color={theme.colors.textTertiary} />
+            <Text style={styles.statText}>{wordCount}</Text>
+          </View>
+          <View style={styles.stat}>
+            <MaterialIcons name="text-fields" size={14} color={theme.colors.textTertiary} />
+            <Text style={styles.statText}>{charCount}</Text>
+          </View>
+          <Text style={styles.date}>{date}</Text>
+        </View>
         {note.isFavorite && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>مفضلة</Text>
@@ -115,6 +128,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    flex: 1,
+  },
+  
+  stat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  
+  statText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textTertiary,
+    fontWeight: theme.fontWeight.medium,
   },
   
   date: {

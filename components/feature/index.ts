@@ -12,3 +12,5 @@ export { AudioRecorder } from './AudioRecorder';
 export { AudioPlayer } from './AudioPlayer';
 export { LockScreen } from './LockScreen';
 export { TagPicker } from './TagPicker';
+export { PDFViewer } from './PDFViewer';
+export { PDFAttachments } from './PDFAttachments';

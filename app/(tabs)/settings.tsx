@@ -13,10 +13,14 @@ import type { AIModel } from '@/contexts/SettingsContext';
 import type { SecurityMethod } from '@/contexts/SecurityContext';
 
 const AI_MODELS = [
-  { id: 'gemini-flash' as AIModel, name: 'Gemini Flash', desc: 'سريع ومتوازن - الافتراضي' },
-  { id: 'gemini-pro' as AIModel, name: 'Gemini Pro', desc: 'الأقوى للمهام المعقدة' },
+  { id: 'gemini-flash' as AIModel, name: 'Gemini 3 Flash', desc: 'سريع ومتوازن - الافتراضي' },
+  { id: 'gemini-flash-lite' as AIModel, name: 'Gemini 2.5 Flash Lite', desc: 'الأسرع والأرخص' },
+  { id: 'gemini-pro' as AIModel, name: 'Gemini 3 Pro', desc: 'الأقوى للمهام المعقدة' },
+  { id: 'gpt-5' as AIModel, name: 'GPT-5.1', desc: 'الأقوى من OpenAI' },
   { id: 'gpt-5-mini' as AIModel, name: 'GPT-5 Mini', desc: 'متوازن وسريع' },
-  { id: 'gpt-5' as AIModel, name: 'GPT-5', desc: 'الأقوى من OpenAI' },
+  { id: 'gpt-5-nano' as AIModel, name: 'GPT-5 Nano', desc: 'الأسرع من GPT-5' },
+  { id: 'gemini-flash-image' as AIModel, name: 'Gemini Flash Image', desc: 'توليد وتعديل الصور' },
+  { id: 'gemini-pro-image' as AIModel, name: 'Gemini Pro Image', desc: 'توليد صور احترافية' },
 ];
 
 const FONT_SIZES = [
@@ -503,6 +507,58 @@ export default function SettingsScreen() {
               thumbColor={settings.autoSave ? theme.colors.primary : '#666'}
             />
           </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>العرض المضغوط</Text>
+              <Text style={styles.settingDesc}>عرض المزيد من الملاحظات في الشاشة</Text>
+            </View>
+            <Switch
+              value={settings.compactView}
+              onValueChange={(value) => updateSettings({ compactView: value })}
+              trackColor={{ false: '#333', true: theme.colors.primaryDark }}
+              thumbColor={settings.compactView ? theme.colors.primary : '#666'}
+            />
+          </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>التدقيق الإملائي</Text>
+              <Text style={styles.settingDesc}>تفعيل التدقيق الإملائي التلقائي</Text>
+            </View>
+            <Switch
+              value={settings.enableSpellCheck}
+              onValueChange={(value) => updateSettings({ enableSpellCheck: value })}
+              trackColor={{ false: '#333', true: theme.colors.primaryDark }}
+              thumbColor={settings.enableSpellCheck ? theme.colors.primary : '#666'}
+            />
+          </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>عداد الكلمات</Text>
+              <Text style={styles.settingDesc}>إظهار عدد الكلمات في الملاحظات</Text>
+            </View>
+            <Switch
+              value={settings.enableWordCount}
+              onValueChange={(value) => updateSettings({ enableWordCount: value })}
+              trackColor={{ false: '#333', true: theme.colors.primaryDark }}
+              thumbColor={settings.enableWordCount ? theme.colors.primary : '#666'}
+            />
+          </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>النسخ الاحتياطي التلقائي</Text>
+              <Text style={styles.settingDesc}>نسخ احتياطي تلقائي للملاحظات</Text>
+            </View>
+            <Switch
+              value={settings.enableAutoBackup}
+              onValueChange={(value) => updateSettings({ enableAutoBackup: value })}
+              trackColor={{ false: '#333', true: theme.colors.primaryDark }}
+              thumbColor={settings.enableAutoBackup ? theme.colors.primary : '#666'}
+            />
+          </View>
         </View>
 
         {/* Reset Button */}
@@ -516,8 +572,9 @@ export default function SettingsScreen() {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appInfoText}>تطبيق الملاحظات الذكي</Text>
+          <Text style={styles.appInfoText}>Moriyumi</Text>
           <Text style={styles.appInfoVersion}>الإصدار 1.0.0</Text>
+          <Text style={styles.appInfoDesc}>تطبيق ملاحظات ذكي بدون حدود</Text>
         </View>
 
         {/* Pattern Setup Modal */}
@@ -723,6 +780,12 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.textTertiary,
     marginTop: 4,
+  },
+  
+  appInfoDesc: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textTertiary,
+    marginTop: 2,
   },
   
   storageInfo: {

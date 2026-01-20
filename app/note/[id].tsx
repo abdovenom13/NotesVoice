@@ -26,6 +26,7 @@ import { dataService } from '@/services/dataService';
 import { Note, MediaAttachment } from '@/services/noteService';
 import { mediaService } from '@/services/mediaService';
 import { audioService } from '@/services/audioService';
+import { pdfService, PDFAttachment } from '@/services/pdfService';
 import { FormatToolbar } from '@/components/feature/FormatToolbar';
 import { RichTextPreview } from '@/components/feature/RichTextPreview';
 import { AIMenu } from '@/components/feature/AIMenu';
@@ -35,6 +36,7 @@ import { FolderPicker } from '@/components/feature/FolderPicker';
 import { AudioRecorder } from '@/components/feature/AudioRecorder';
 import { AudioPlayer } from '@/components/feature/AudioPlayer';
 import { TagPicker } from '@/components/feature/TagPicker';
+import { PDFAttachments } from '@/components/feature/PDFAttachments';
 import { useTags } from '@/hooks/useTags';
 import { useAlert } from '@/template';
 
@@ -90,6 +92,7 @@ export default function NoteDetailScreen() {
   const noteTags = tags.filter(t => note?.tagIds?.includes(t.id));
   const audioAttachments = note?.attachments?.filter(a => a.type === 'audio') || [];
   const imageAttachments = note?.attachments?.filter(a => a.type === 'image') || [];
+  const pdfAttachments = note?.attachments?.filter(a => a.type === 'pdf') || [];
 
   useEffect(() => {
     const foundNote = notes.find(n => n.id === id);
@@ -203,7 +206,11 @@ export default function NoteDetailScreen() {
 
     const attachment = note.attachments?.find(a => a.id === id);
     if (attachment) {
-      await mediaService.deleteMedia(attachment);
+      if (attachment.type === 'pdf') {
+        await pdfService.deletePDF(attachment.uri);
+      } else {
+        await mediaService.deleteMedia(attachment);
+      }
     }
 
     const updatedNote = {
@@ -214,6 +221,35 @@ export default function NoteDetailScreen() {
     await saveNote(updatedNote);
     setNote(updatedNote);
     showAlert(t('done'), 'تم حذف الوسائط بنجاح');
+  };
+
+  const handleAddPDF = async () => {
+    try {
+      const pdf = await pdfService.pickPDF();
+      if (pdf && note) {
+        const pdfAttachment: MediaAttachment = {
+          id: pdf.id,
+          uri: pdf.uri,
+          type: 'pdf',
+          name: pdf.name,
+          size: pdf.size,
+          pageCount: pdf.pageCount,
+          createdAt: pdf.createdAt,
+        };
+
+        const updatedNote = {
+          ...note,
+          attachments: [...(note.attachments || []), pdfAttachment],
+          updatedAt: Date.now(),
+        };
+        await saveNote(updatedNote);
+        setNote(updatedNote);
+        showAlert('تم', 'تم إضافة ملف PDF بنجاح');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'فشل إضافة ملف PDF';
+      showAlert(t('error'), message);
+    }
   };
 
   const handleVoiceInput = () => {
@@ -453,6 +489,13 @@ export default function NoteDetailScreen() {
               <MaterialIcons name="attach-file" size={24} color={theme.colors.textSecondary} />
             </Pressable>
             <Pressable 
+              onPress={handleAddPDF} 
+              hitSlop={12} 
+              style={styles.iconButton}
+            >
+              <MaterialIcons name="picture-as-pdf" size={24} color={theme.colors.error} />
+            </Pressable>
+            <Pressable 
               onPress={() => setShowAIMenu(true)} 
               hitSlop={12} 
               style={styles.iconButton}
@@ -525,6 +568,12 @@ export default function NoteDetailScreen() {
           
           <MediaAttachments
             attachments={imageAttachments}
+            onRemove={handleRemoveMedia}
+            editable={!previewMode}
+          />
+          
+          <PDFAttachments
+            attachments={pdfAttachments as any}
             onRemove={handleRemoveMedia}
             editable={!previewMode}
           />

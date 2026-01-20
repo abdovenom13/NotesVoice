@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type AIModel = 'gemini-flash' | 'gemini-pro' | 'gpt-5-mini' | 'gpt-5';
+export type AIModel = 'gemini-flash' | 'gemini-flash-lite' | 'gemini-pro' | 'gpt-5-mini' | 'gpt-5' | 'gpt-5-nano' | 'gemini-flash-image' | 'gemini-pro-image';
 
 export interface Settings {
   aiModel: AIModel;
@@ -12,6 +12,12 @@ export interface Settings {
   showTimestamps: boolean;
   maxImageSize: number; // MB
   maxFileSize: number; // MB for exports/imports
+  compactView: boolean;
+  lineSpacing: 'normal' | 'relaxed' | 'loose';
+  enableSpellCheck: boolean;
+  enableWordCount: boolean;
+  enableAutoBackup: boolean;
+  backupInterval: number; // hours
 }
 
 interface SettingsContextType {
@@ -31,6 +37,12 @@ const DEFAULT_SETTINGS: Settings = {
   showTimestamps: true,
   maxImageSize: 5,
   maxFileSize: 100,
+  compactView: false,
+  lineSpacing: 'normal',
+  enableSpellCheck: true,
+  enableWordCount: true,
+  enableAutoBackup: false,
+  backupInterval: 24,
 };
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
