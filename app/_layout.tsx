@@ -3,7 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AlertProvider } from '@/template';
 import { StatusBar } from 'expo-status-bar';
 import { SettingsProvider } from '@/contexts/SettingsContext';
-import { FoldersProvider } from '@/contexts/FoldersProvider';
+import { FoldersProvider } from '@/contexts/FoldersContext';
 import { SecurityProvider } from '@/contexts/SecurityContext';
 import { TagsProvider } from '@/contexts/TagsContext';
 import { GamificationProvider } from '@/contexts/GamificationContext';
